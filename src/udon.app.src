@@ -1,0 +1,14 @@
+%% -*- erlang -*-
+{application, udon,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  riak_core
+                 ]},
+  {mod, { udon_app, []}},
+  {env, []}
+ ]}.
