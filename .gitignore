@@ -5,6 +5,8 @@ deps
 *.plt
 erl_crash.dump
 ebin
-rel/udon
+rel/*
 .concrete/DEV_MODE
 .rebar
+*.swp
+dev/*
