@@ -24,6 +24,10 @@ init(_Args) ->
                   {riak_core_vnode_master, start_link, [udon_vnode]},
                   permanent, 5000, worker, [riak_core_vnode_master]},
 
+    OpFSMs = {udon_op_fsm_sup,
+              {udon_op_fsm_sup, start_link, []},
+              permanent, infinity, supervisor, [udon_op_fsm_sup]},
+
     { ok,
         { {one_for_one, 5, 10},
-          [VMaster]}}.
+          [VMaster, OpFSMs]}}.
