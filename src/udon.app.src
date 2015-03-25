@@ -7,7 +7,9 @@
   {applications, [
                   kernel,
                   stdlib,
-                  riak_core
+                  riak_core,
+                  mochiweb,
+                  webmachine
                  ]},
   {mod, { udon_app, []}},
   {env, []}
