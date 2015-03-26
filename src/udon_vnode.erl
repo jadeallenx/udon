@@ -2,6 +2,8 @@
 -behaviour(riak_core_vnode).
 -include("udon.hrl").
 
+-include_lib("riak_core/include/riak_core_vnode.hrl").
+
 -export([start_vnode/1,
          init/1,
          terminate/2,
@@ -69,6 +71,44 @@ handle_command(Message, _Sender, State) ->
     ?PRINT({unhandled_command, Message}),
     {noreply, State}.
 
+%% The `VisitFun' is riak_core_handoff_sender:visit_item/3
+%% visit_item/3 is going to do all of the hard work of taking your serialized 
+%% data and pushing it over the wire to the remote node.
+%%
+%% Acc0 here is the internal state of the handoff. visit_item/3 returns an
+%% updated handoff state, so you should use that in your own fold over
+%% vnode data elements.
+%%
+%% The goal here is simple: for each vnode, find all objects, then for
+%% each object in a vnode, grab its metadata and the file contents, serialize it
+%% using the `encode_handoff_item/2' callback and ship it over to the 
+%% remote node.
+%%
+%% The remote node is going to receive the serialized data using 
+%% the `handle_handoff_data/2' function below.
+handle_handoff_command(?FOLD_REQ{foldfun=VisitFun, acc0=Acc0}, _Sender, State) ->
+    AllObjects = get_all_objects(State),
+    Base = make_base_path(State),
+
+    Do = fun(Object, AccIn) ->
+                 MPath = path_from_object(Base, Object, ".meta"),
+                 ?PRINT(MPath),
+                 Meta = get_metadata(MPath),
+                 ?PRINT(Meta),
+                 %% TODO: Get all file versions
+                 {ok, LatestFile} = get_data(State, Meta),
+                 ?PRINT(LatestFile),
+                 %% This VisitFun expects a {Bucket, Key} pair
+                 %% but we don't have "buckets" in our application
+                 %% So we will just use our KEY macro from udon.hrl
+                 %% and ignore it in the encoding.
+                 AccOut = VisitFun(?KEY(Meta#file.path_md5), {Meta, LatestFile}, AccIn),
+                 ?PRINT(AccOut),
+                 AccOut
+    end,
+    Final = lists:foldl(Do, Acc0, AllObjects),
+    {reply, Final, State};
+
 handle_handoff_command(Message, _Sender, State) ->
     ?PRINT({unhandled_handoff_command, Message}),
     {noreply, State}.
@@ -83,12 +123,19 @@ handoff_finished(_TargetNode, State) ->
     {ok, State}.
 
 handle_handoff_data(Data, State) ->
-    {Path, Blob} = binary_to_term(Data),
-    store(State, Path, Blob),
-    {reply, ok, State}.
+    {Meta, Blob} = binary_to_term(Data),
+    R = case Meta#file.csum =:= erlang:adler32(Blob) of
+        true ->
+            Result = store(State, Meta, Blob),
+            ?PRINT(Result),
+            ok;
+        false ->
+            {error, file_checksum_difers}
+    end,
+    {reply, R, State}.
 
-encode_handoff_item(Path, Blob) ->
-    term_to_binary({Path, Blob}).
+encode_handoff_item(_Key, Data = {_Meta, _File}) ->
+    term_to_binary(Data).
 
 is_empty(State) ->
     Result = case list_dir(State) of
@@ -112,17 +159,31 @@ terminate(_Reason, _State) ->
 
 %% Private API
 
+get_all_objects(State) ->
+    [ strip_meta(F) || F <- filelib:wildcard("*.meta", make_base_path(State)) ].
+
+strip_meta(Filename) ->
+    Index = string:chr(Filename, $.),
+    string:substr(Filename, 1, Index - 1).
+
 list_dir(State) ->
     case file:list_dir(make_base_path(State)) of
         {ok, Files} -> Files;
         Other -> Other
     end.
 
+path_from_object(Base, Object, Suffix) ->
+    File = Object ++ Suffix,
+    filename:join([Base, File]).
+
 get_metadata(State = #state{}, #file{ path_md5 = Hash }) ->
     get_metadata(State, Hash);
 get_metadata(State = #state{}, Hash) when is_binary(Hash) ->
     MDPath = make_metadata_path(State, Hash),
-    {ok, Data} = file:read_file(MDPath),
+    get_metadata(MDPath).
+
+get_metadata(MetaDataPath) ->
+    {ok, Data} = file:read_file(MetaDataPath),
     binary_to_term(Data).
 
 get_data(State = #state{}, R = #file{ csum = Csum }) ->
@@ -164,9 +225,6 @@ store_meta_file(Loc, Rec) ->
     
 store_file(Loc, Data) ->
     file:write_file(Loc, Data).
-
-%store_redirect(P, Filename, NewPath) ->
-%    file:write_file(filename:join([P, Filename]), iolist_to_binary(["REDIRECT", NewPath])).
 
 hexstring(<<X:128/big-unsigned-integer>>) ->
     lists:flatten(io_lib:format("~32.16.0b", [X])).

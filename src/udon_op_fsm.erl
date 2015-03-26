@@ -16,7 +16,7 @@
 %%
 %% sender: The pid of the sender so a reply can be made.
 %%
-%% prelist: The preflist for the given {Bucket, Stream} pair.
+%% prelist: The preflist for the data.
 %%
 %% num_w: The number of successful write replies.
 %%
