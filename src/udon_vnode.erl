@@ -130,7 +130,7 @@ handle_handoff_data(Data, State) ->
             ?PRINT(Result),
             ok;
         false ->
-            {error, file_checksum_difers}
+            {error, file_checksum_differs}
     end,
     {reply, R, State}.
 
