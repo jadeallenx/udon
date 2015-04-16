@@ -15,3 +15,28 @@ The video for the talk is available [on YouTube][3].
 [1]: http://www.erlang-factory.com/sfbay2015/mark-allen
 [2]: https://speakerdeck.com/mrallen1/building-distributed-applications-with-riak-core 
 [3]: https://www.youtube.com/watch?v=LKsNbYf9mLw
+
+Building
+--------
+Make sure you have Erlang 17+ installed and operational. You also will need a working C++ compiler and GNU make.  Clone the repo.
+
+    $ cd udon 
+    $ make devrel
+  
+Building a cluster
+------------------
+
+    $ cd dev
+    $ for d in *; do $d/bin/udon start; done
+    $ dev/dev2/bin/udon-admin cluster join udon1@127.0.0.1
+    $ dev/dev3/bin/udon-admin cluster join udon1@127.0.0.1
+    $ dev/dev4/bin/udon-admin cluster join udon1@127.0.0.1
+    $ dev/dev1/bin/udon-admin cluster plan
+    $ dev/dev1/bin/udon-admin cluster commit
+
+Running
+-------
+
+    $ dev/dev1/bin/udon attach
+    udon1@127.0.0.1:1> udon:put("test", <<"foo">>).
+  
