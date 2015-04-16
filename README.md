@@ -9,8 +9,9 @@ Slides and video
 ----------------
 The slides can be found [on SpeakerDeck][2].
 
-The video has not been posted yet, but I will update this README when it has.
+The video for the talk is available [on YouTube][3].
 
 [0]: https://github.com/basho/riak_core
 [1]: http://www.erlang-factory.com/sfbay2015/mark-allen
 [2]: https://speakerdeck.com/mrallen1/building-distributed-applications-with-riak-core 
+[3]: https://www.youtube.com/watch?v=LKsNbYf9mLw
