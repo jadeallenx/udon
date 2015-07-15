@@ -30,15 +30,18 @@ store(Path, Data) ->
     {ok, ReqId} = udon_op_fsm:op(N, W, {store, PRec, Data}, ?KEY(PHash)),
     wait_for_reqid(ReqId, Timeout).
 
-%% @TODO Handle redirects
+%% @private Given a path and a new path, update the metadata and write the redirect URL
+%% as a new version of the data blob for the given path.
 store(redirect, Path, NewPath) ->
     N = 3,
     W = 3,
     Timeout = 5000, % millisecs
 
     PHash = path_to_hash(Path),
+    PRec = #file{ request_path = Path, path_md5 = PHash, redirect = true, 
+                  csum = erlang:adler32(NewPath) },
 
-    {ok, ReqId} = udon_op_fsm:op(N, W, {redirect, PHash, NewPath}, ?KEY(PHash)),
+    {ok, ReqId} = udon_op_fsm:op(N, W, {store, PRec, NewPath}, ?KEY(PHash)),
     wait_for_reqid(ReqId, Timeout).
 
 %% @doc Retrieves a static file from the given path
@@ -49,8 +52,13 @@ fetch(Path) ->
     [{Node, _Type}] = riak_core_apl:get_primary_apl(Idx, 1, udon),
     riak_core_vnode_master:sync_spawn_command(Node, {fetch, PHash}, udon_vnode_master).
 
+%% @doc Move the data at Path to Newpath and mark Path (the old path) as a redirect
+%% to the new URL.
 rename(Path, NewPath) ->
-    Data = fetch(Path),
+    Data = case fetch(Path) of
+              not_found -> throw({not_found, Path});
+              {_, X} -> X
+    end,
     store(NewPath, Data),
     store(redirect, Path, NewPath).
     

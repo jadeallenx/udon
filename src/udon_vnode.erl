@@ -61,11 +61,17 @@ handle_command({fetch, PHash}, _Sender, State) ->
     Res = case filelib:is_regular(MetaPath) of
         true ->
             MD = get_metadata(State, PHash),
-            get_data(State, MD);
+            Data = get_data(State, MD),
+            case MD#file.redirect of
+                true ->
+                    {redirect, Data};
+                _ ->
+                    {ok, Data}
+            end;
         false ->
             not_found
     end,
-    {reply, {Res, filename:join([make_base_path(State), make_filename(PHash)])}, State};
+    {reply, Res, State};
 
 handle_command(Message, _Sender, State) ->
     ?PRINT({unhandled_command, Message}),
