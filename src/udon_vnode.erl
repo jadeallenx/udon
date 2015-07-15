@@ -56,12 +56,12 @@ handle_command({RequestId, {store, R, Data}}, _Sender, State) ->
         {MetaResult, DataResult, Loc} = store(State, R#file{version=NewVersion}, Data),
         {reply, {RequestId, {MetaResult, DataResult, Loc}}, State};
 
-handle_command({fetch, PHash}, _Sender, State) ->
+handle_command({fetch, PHash, Version}, _Sender, State) ->
     MetaPath = make_metadata_path(State, PHash),
     Res = case filelib:is_regular(MetaPath) of
         true ->
             MD = get_metadata(State, PHash),
-            Data = get_data(State, MD),
+            {ok, Data} = get_data(State, MD, Version),
             case MD#file.redirect of
                 true ->
                     {redirect, Data};
@@ -199,12 +199,25 @@ get_data(State = #state{}, R = #file{ csum = Csum }) ->
 	false -> {error, file_checksum_differs}
     end.
 
+get_data(State = #state{}, R = #file{}, undefined) ->
+    get_data(State, R);
+get_data(State = #state{}, #file{ csum = Csum, path_md5 = Hash, version = V }, Version) when Version =< V ->
+    {ok, Data} = file:read_file(make_versioned_file_path(State, Hash, V)),
+    case Csum =:= erlang:adler32(Data) of
+	true -> {ok, Data};
+	false -> {error, file_checksum_differs}
+    end;
+get_data(_, _, _) -> {error, bad_version}.
+
 make_metadata_path(State = #state{}, #file{ path_md5 = Hash }) ->
     make_metadata_path(State, Hash);
 make_metadata_path(State = #state{}, Hash) when is_binary(Hash) ->
     filename:join([make_base_path(State), make_metadata_filename(Hash)]).
 
 make_versioned_file_path(State = #state{}, #file{ path_md5 = Hash, version = V} ) ->
+    filename:join([make_base_path(State) , make_versioned_filename(Hash, V)]).
+
+make_versioned_file_path(State = #state{}, Hash, V) ->
     filename:join([make_base_path(State) , make_versioned_filename(Hash, V)]).
 
 make_base_path(#state{partition = P, basedir = Base}) ->

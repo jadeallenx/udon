@@ -6,14 +6,16 @@
          ping/0,
          store/2,
          rename/2,
-         fetch/1
+         fetch/1,
+         fetch/2
         ]).
 
 -ignore_xref([
               ping/0,
               store/2,
               rename/2,
-              fetch/1
+              fetch/1,
+              fetch/2
              ]).
 
 %% Public API
@@ -44,13 +46,17 @@ store(redirect, Path, NewPath) ->
     {ok, ReqId} = udon_op_fsm:op(N, W, {store, PRec, NewPath}, ?KEY(PHash)),
     wait_for_reqid(ReqId, Timeout).
 
-%% @doc Retrieves a static file from the given path
+%% @doc Retrieves the latest version of a static file from the given path
 fetch(Path) ->
+    fetch(Path, undefined).
+
+%% @doc Retrieves the specified version of a static file from the given path
+fetch(Path, Version) ->
     PHash = path_to_hash(Path),
     Idx = riak_core_util:chash_key(?KEY(PHash)),
     %% TODO: Get a preflist with more than one node
     [{Node, _Type}] = riak_core_apl:get_primary_apl(Idx, 1, udon),
-    riak_core_vnode_master:sync_spawn_command(Node, {fetch, PHash}, udon_vnode_master).
+    riak_core_vnode_master:sync_spawn_command(Node, {fetch, PHash, Version}, udon_vnode_master).
 
 %% @doc Move the data at Path to Newpath and mark Path (the old path) as a redirect
 %% to the new URL.
