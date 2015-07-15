@@ -200,7 +200,8 @@ get_metadata(MetaDataPath) ->
 
 get_all_data(State, Meta = #file{ version = V }) ->
     F = lists:map(fun(Version) ->
-                    get_data(State, Meta, Version)
+                    {ok, Data} = get_data(State, Meta, Version),
+                    Data
                   end,
                   lists:seq(1, V)),
     lists:reverse(F).
