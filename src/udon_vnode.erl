@@ -201,12 +201,8 @@ get_data(State = #state{}, R = #file{ csum = Csum }) ->
 
 get_data(State = #state{}, R = #file{}, undefined) ->
     get_data(State, R);
-get_data(State = #state{}, #file{ csum = Csum, path_md5 = Hash, version = V }, Version) when Version =< V ->
-    {ok, Data} = file:read_file(make_versioned_file_path(State, Hash, V)),
-    case Csum =:= erlang:adler32(Data) of
-	true -> {ok, Data};
-	false -> {error, file_checksum_differs}
-    end;
+get_data(State = #state{}, #file{ path_md5 = Hash, version = V }, Version) when Version =< V ->
+    file:read_file(make_versioned_file_path(State, Hash, V));
 get_data(_, _, _) -> {error, bad_version}.
 
 make_metadata_path(State = #state{}, #file{ path_md5 = Hash }) ->
