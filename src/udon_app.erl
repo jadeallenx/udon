@@ -18,8 +18,6 @@ start(_StartType, _StartArgs) ->
             ok = riak_core_node_watcher_events:add_guarded_handler(udon_node_event_handler, []),
             ok = riak_core_node_watcher:service_up(udon, self()),
 
-            [ webmachine_router:add_route(R) || R <- udon_wm:dispatch_table() ],
-
             {ok, Pid};
         {error, Reason} ->
             {error, Reason}
