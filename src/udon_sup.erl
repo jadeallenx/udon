@@ -20,6 +20,7 @@ start_link() ->
 %% ===================================================================
 
 init(_Args) ->
+    webmachine_router:add_route({[], udon_wm_handler, []}),
     VMaster = { udon_vnode_master,
                   {riak_core_vnode_master, start_link, [udon_vnode]},
                   permanent, 5000, worker, [riak_core_vnode_master]},
