@@ -201,7 +201,12 @@ get_data(State = #state{}, R = #file{ csum = Csum }) ->
 
 get_data(State = #state{}, R = #file{}, undefined) ->
     get_data(State, R);
-get_data(State = #state{}, #file{ path_md5 = Hash, version = V }, Version) when Version =< V ->
+get_data(State = #state{}, R = #file{ version = V }, V ) ->
+    get_data(State, R);
+get_data(State = #state{}, #file{ path_md5 = Hash, version = V }, Version) 
+        when is_integer(Version) 
+            andalso Version < V 
+            andalso Version > 0 ->
     file:read_file(make_versioned_file_path(State, Hash, V));
 get_data(_, _, _) -> {error, bad_version}.
 
