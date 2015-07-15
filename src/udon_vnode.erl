@@ -101,14 +101,13 @@ handle_handoff_command(?FOLD_REQ{foldfun=VisitFun, acc0=Acc0}, _Sender, State) -
                  ?PRINT(MPath),
                  Meta = get_metadata(MPath),
                  ?PRINT(Meta),
-                 %% TODO: Get all file versions
-                 {ok, LatestFile} = get_data(State, Meta),
-                 ?PRINT(LatestFile),
+                 {ok, Files} = get_all_data(State, Meta),
+                 ?PRINT(Files),
                  %% This VisitFun expects a {Bucket, Key} pair
                  %% but we don't have "buckets" in our application
                  %% So we will just use our KEY macro from udon.hrl
                  %% and ignore it in the encoding.
-                 AccOut = VisitFun(?KEY(Meta#file.path_md5), {Meta, LatestFile}, AccIn),
+                 AccOut = VisitFun(?KEY(Meta#file.path_md5), {Meta, Files}, AccIn),
                  ?PRINT(AccOut),
                  AccOut
     end,
@@ -129,7 +128,8 @@ handoff_finished(_TargetNode, State) ->
     {ok, State}.
 
 handle_handoff_data(Data, State) ->
-    {Meta, Blob} = binary_to_term(Data),
+    {Meta, Files} = binary_to_term(Data),
+    Blob = hd(Files),
     R = case Meta#file.csum =:= erlang:adler32(Blob) of
         true ->
             Result = store(State, Meta, Blob),
@@ -138,9 +138,15 @@ handle_handoff_data(Data, State) ->
         false ->
             {error, file_checksum_differs}
     end,
+    lists:foldr(fun(Blob0, Version) ->
+                        store_blob_version(State, Meta#file.path_md5, Version, Blob0),
+                        Version - 1
+                end,
+                Meta#file.version - 1,
+                tl(Files)),
     {reply, R, State}.
 
-encode_handoff_item(_Key, Data = {_Meta, _File}) ->
+encode_handoff_item(_Key, Data = {_Meta, _Files}) ->
     term_to_binary(Data).
 
 is_empty(State) ->
@@ -192,6 +198,13 @@ get_metadata(MetaDataPath) ->
     {ok, Data} = file:read_file(MetaDataPath),
     binary_to_term(Data).
 
+get_all_data(State, Meta = #file{ version = V }) ->
+    F = lists:map(fun(Version) ->
+                    get_data(State, Meta, Version)
+                  end,
+                  lists:seq(1, V)),
+    lists:reverse(F).
+
 get_data(State = #state{}, R = #file{ csum = Csum }) ->
     {ok, Data} = file:read_file(make_versioned_file_path(State, R)),
     case Csum =:= erlang:adler32(Data) of
@@ -228,6 +241,9 @@ store(State = #state{}, R = #file{ path_md5 = PHash }, Blob) ->
     Res0 = store_meta_file(make_metadata_path(State, R), R),
     Res1 = store_file(make_versioned_file_path(State, R), Blob),
     {Res0, Res1, filename:join([Base, make_filename(PHash)])}.
+
+store_blob_version(State, Hash, Version, Blob) ->
+    store_file(make_versioned_file_path(State, Hash, Version), Blob).
 
 make_metadata_filename(Hash) when is_binary(Hash) ->
     make_filename(Hash) ++ ".meta".
