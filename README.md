@@ -26,17 +26,17 @@ Make sure you have Erlang 17+ installed and operational. You also will need a wo
 Building a cluster
 ------------------
 
-    $ cd dev
-    $ for d in *; do $d/bin/udon start; done
+    $ for d in dev/*; do $d/bin/udon start; done
     $ dev/dev2/bin/udon-admin cluster join udon1@127.0.0.1
     $ dev/dev3/bin/udon-admin cluster join udon1@127.0.0.1
     $ dev/dev4/bin/udon-admin cluster join udon1@127.0.0.1
     $ dev/dev1/bin/udon-admin cluster plan
     $ dev/dev1/bin/udon-admin cluster commit
+    $ dev/dev1/bin/udon-admin member-status
 
 Running
 -------
 
     $ dev/dev1/bin/udon attach
-    udon1@127.0.0.1:1> udon:put("test", <<"foo">>).
+    udon1@127.0.0.1:1> udon:store("test", <<"foo">>).
   
