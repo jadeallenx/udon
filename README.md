@@ -1,3 +1,10 @@
+Important note:
+====================
+
+This is a historical archive! Please do not use it any more. Instead, please see [udon_ng](https://github.com/mrallen1/udon_ng) for the modern version of this same project with support for OTP 18 and 19. OTP 20 support is not completely finished but should be available soon.  Thanks.
+
+Original README below
+
 udon: a distributed static file web server
 =============================
 
